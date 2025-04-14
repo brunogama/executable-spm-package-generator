@@ -1,0 +1,105 @@
+# Default configurations
+default_stages: [pre-commit]
+default_install_hook_types: [pre-commit, pre-push, commit-msg]
+default_language_version:
+  python: python3
+
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.5.0
+  hooks:
+  - id: no-commit-to-branch
+    name: Block commits to protected branches
+    description: "Prevent commits to protected branches. To ignore rule use git commit --no-verify OR Temporarily disable pre-commit with `SKIP=no-commit-to-branch git commit -m 'FOO'`"
+    args: [
+      '--branch', 'main',
+      '--branch', 'master',
+      '--branch', 'dev',
+      '--branch', 'develop',
+      '--branch', 'release'
+    ]
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.5.0
+  hooks:
+  - id: check-yaml
+    description: Ensure parseable yaml/yml files
+  - id: check-json
+    exclude: ^\.vscode/
+  - id: pretty-format-json
+    args: [--autofix, --no-sort-keys]
+    exclude: ^\.vscode/
+  - id: end-of-file-fixer
+  - id: trailing-whitespace
+  - id: check-merge-conflict
+  - id: check-executables-have-shebangs
+  - id: check-added-large-files
+    args: ['--maxkb=1024']
+- repo: https://github.com/jumanjihouse/pre-commit-hooks
+  rev: 3.0.0
+  hooks:
+  - id: shellcheck
+    args: [--severity=warning]
+    types: [shell]
+- repo: https://github.com/pre-commit/mirrors-clang-format
+  rev: v19.1.4
+  hooks:
+  - id: clang-format
+    files: '^.*\.(hpp|cpp|h)$'
+    exclude: '^(vendor/.*|darwin/include/mbgl/storage/reachability\.h)$'
+    args: [--style=file]
+- repo: https://github.com/keith/pre-commit-buildifier
+  rev: 7.3.1
+  hooks:
+  - id: buildifier
+    args: [--lint=warn]
+  - id: buildifier-lint
+    args: [--warnings=all]
+- repo: https://github.com/nicklockwood/SwiftFormat
+  rev: 0.55.3
+  hooks:
+  - id: swiftformat
+    name: swiftformat
+    description: "Auto-format Swift files"
+    args: [
+      --swiftversion, "5.9",
+      --config, .swiftformat,
+      --quiet,
+      --header, strip,
+      --trimwhitespace, always,
+      --stripunusedargs, closure-only,
+      --self, remove
+    ]
+    types: [swift]
+    require_serial: true
+- repo: https://github.com/pre-commit/mirrors-prettier
+  rev: v3.0.3
+  hooks:
+  - id: prettier
+    types_or: [javascript, jsx, ts, tsx, json, markdown]
+    additional_dependencies: ['prettier@3.0.3']
+    args: [--write]
+    require_serial: true
+- repo: https://github.com/python/black
+  rev: 23.9.1
+  hooks:
+  - id: black
+    language_version: python3
+    types: [python]
+    require_serial: true
+- repo: https://github.com/realm/SwiftLint
+  rev: 0.57.1
+  hooks:
+  - id: swiftlint
+    name: swiftlint
+    description: "Lint Swift files"
+    args: [--config, .swiftlint.yml]
+    types: [swift]
+    require_serial: true
+- repo: https://github.com/qoomon/git-conventional-commits
+  rev: V2.6.7
+  hooks:
+  - id: conventional-commits
+    name: conventional-commits
+    description: "Check commit messages for conventional commit format"
+    stages: [commit-msg]
+    require_serial: true

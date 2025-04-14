@@ -1,0 +1,364 @@
+#!/bin/bash
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# Backup directory
+BACKUP_DIR=".git-hooks-backup"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+# Function to check if command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Function to create backup
+create_backup() {
+    echo -e "${BLUE}Creating backup...${NC}"
+    mkdir -p "$BACKUP_DIR/$TIMESTAMP"
+
+    # Backup git config
+    if [ -f ~/.gitconfig ]; then
+        cp ~/.gitconfig "$BACKUP_DIR/$TIMESTAMP/gitconfig"
+    fi
+
+    # Backup pre-commit config
+    if [ -f .pre-commit-config.yaml ]; then
+        cp .pre-commit-config.yaml "$BACKUP_DIR/$TIMESTAMP/pre-commit-config.yaml"
+    fi
+
+    # Backup git hooks
+    if [ -d .git/hooks ]; then
+        cp -r .git/hooks "$BACKUP_DIR/$TIMESTAMP/hooks"
+    fi
+
+    # Create restore script
+    cat > "$BACKUP_DIR/$TIMESTAMP/restore.sh" << 'EOF'
+#!/bin/bash
+echo "Restoring git configuration..."
+if [ -f gitconfig ]; then
+    cp gitconfig ~/.gitconfig
+fi
+
+echo "Restoring pre-commit configuration..."
+if [ -f pre-commit-config.yaml ]; then
+    cp pre-commit-config.yaml ../../.pre-commit-config.yaml
+fi
+
+echo "Restoring git hooks..."
+if [ -d hooks ]; then
+    cp -r hooks ../../.git/
+fi
+
+echo "Restoration complete!"
+EOF
+    chmod +x "$BACKUP_DIR/$TIMESTAMP/restore.sh"
+
+    echo -e "${GREEN}Backup created in $BACKUP_DIR/$TIMESTAMP${NC}"
+    echo -e "${YELLOW}To restore, run: cd $BACKUP_DIR/$TIMESTAMP && ./restore.sh${NC}"
+}
+
+# Function to confirm action
+confirm_action() {
+    local message=$1
+    echo
+    echo -e "${BLUE}$message${NC}"
+    # Use </dev/tty to read directly from terminal
+    read -p "Do you want to proceed? (y/N): " -n 1 -r </dev/tty
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        return 1
+    fi
+    return 0
+}
+
+# Function to install hooks
+install_hook() {
+    local hook_name=$1
+    local hook_config=$2
+
+    echo -e "\n${BLUE}Installing $hook_name...${NC}"
+    echo -e "${YELLOW}Configuration:${NC}"
+    echo "$hook_config"
+
+    if confirm_action "Do you want to install this hook?"; then
+        {
+            echo "$hook_config" >> .pre-commit-config.yaml
+            echo -e "${GREEN}$hook_name installed successfully${NC}"
+            return 0
+        } || {
+            echo -e "${RED}Failed to install $hook_name${NC}"
+            return 1
+        }
+    else
+        echo -e "${YELLOW}Skipping $hook_name${NC}"
+        return 1
+    fi
+}
+
+# Function to setup pre-commit base configuration
+setup_pre_commit_base() {
+    echo -e "${BLUE}Setting up base pre-commit configuration...${NC}"
+    cat > .pre-commit-config.yaml << 'EOF'
+# Default configurations
+default_stages: [pre-commit]
+default_install_hook_types: [pre-commit, pre-push, commit-msg]
+default_language_version:
+  python: python3
+
+repos:
+EOF
+}
+
+# Function to install hooks one by one
+install_all_hooks() {
+    local CONFIG_BASIC_HOOKS
+    CONFIG_BASIC_HOOKS=$(cat << 'EOL'
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.5.0
+  hooks:
+  - id: check-yaml
+    description: Ensure parseable yaml/yml files
+  - id: check-json
+    exclude: ^\.vscode/
+  - id: pretty-format-json
+    args: [--autofix, --no-sort-keys]
+    exclude: ^\.vscode/
+  - id: end-of-file-fixer
+  - id: trailing-whitespace
+  - id: check-merge-conflict
+  - id: check-executables-have-shebangs
+  - id: check-added-large-files
+    args: ['--maxkb=1024']
+EOL
+)
+
+    local CONFIG_SHELLCHECK
+    CONFIG_SHELLCHECK=$(cat << 'EOL'
+- repo: https://github.com/jumanjihouse/pre-commit-hooks
+  rev: 3.0.0
+  hooks:
+  - id: shellcheck
+    args: [--severity=warning]
+    types: [shell]
+EOL
+)
+
+    local CONFIG_CLANG_FORMAT
+    CONFIG_CLANG_FORMAT=$(cat << 'EOL'
+- repo: https://github.com/pre-commit/mirrors-clang-format
+  rev: v19.1.4
+  hooks:
+  - id: clang-format
+    files: '^.*\.(hpp|cpp|h)$'
+    exclude: '^(vendor/.*|darwin/include/mbgl/storage/reachability\.h)$'
+    args: [--style=file]
+EOL
+)
+
+    local CONFIG_BUILDIFIER
+    CONFIG_BUILDIFIER=$(cat << 'EOL'
+- repo: https://github.com/keith/pre-commit-buildifier
+  rev: 7.3.1
+  hooks:
+  - id: buildifier
+    args: [--lint=warn]
+  - id: buildifier-lint
+    args: [--warnings=all]
+EOL
+)
+
+    local CONFIG_SWIFTFORMAT
+    CONFIG_SWIFTFORMAT=$(cat << 'EOL'
+- repo: https://github.com/nicklockwood/SwiftFormat
+  rev: 0.55.3
+  hooks:
+  - id: swiftformat
+    name: swiftformat
+    description: "Auto-format Swift files"
+    args: [
+      --swiftversion, "5.9",
+      --config, .swiftformat,
+      --quiet,
+      --header, strip,
+      --trimwhitespace, always,
+      --stripunusedargs, closure-only,
+      --self, remove
+    ]
+    types: [swift]
+    require_serial: true
+EOL
+)
+
+    local CONFIG_PRETTIER
+    CONFIG_PRETTIER=$(cat << 'EOL'
+- repo: https://github.com/pre-commit/mirrors-prettier
+  rev: v3.0.3
+  hooks:
+  - id: prettier
+    types_or: [javascript, jsx, ts, tsx, json, markdown]
+    additional_dependencies: ['prettier@3.0.3']
+    args: [--write]
+    require_serial: true
+EOL
+)
+
+    local CONFIG_BLACK
+    CONFIG_BLACK=$(cat << 'EOL'
+- repo: https://github.com/python/black
+  rev: 23.9.1
+  hooks:
+  - id: black
+    language_version: python3
+    types: [python]
+    require_serial: true
+EOL
+)
+
+    local CONFIG_SWIFTLINT
+    CONFIG_SWIFTLINT=$(cat << 'EOL'
+- repo: https://github.com/realm/SwiftLint
+  rev: 0.57.1
+  hooks:
+  - id: swiftlint
+    name: swiftlint
+    description: "Lint Swift files"
+    args: [--config, .swiftlint.yml]
+    types: [swift]
+    require_serial: true
+EOL
+)
+
+    local CONFIG_CONVENTIONAL_COMMITS
+    CONFIG_CONVENTIONAL_COMMITS=$(cat << 'EOL'
+- repo: https://github.com/qoomon/git-conventional-commits
+  rev: V2.6.7
+  hooks:
+  - id: conventional-commits
+    name: conventional-commits
+    description: "Check commit messages for conventional commit format"
+    stages: [commit-msg]
+    require_serial: true
+EOL
+)
+
+    confirm_action "Do you want to install pre-commit hooks basic package?" && install_hook "Basic Pre-commit Hooks" "$CONFIG_BASIC_HOOKS"
+    confirm_action "Do you want to install shellcheck?" && install_hook "ShellCheck" "$CONFIG_SHELLCHECK"
+    confirm_action "Do you want to install clang-format?" && install_hook "Clang Format" "$CONFIG_CLANG_FORMAT"
+    confirm_action "Do you want to install buildifier?" && install_hook "Buildifier" "$CONFIG_BUILDIFIER"
+    confirm_action "Do you want to install swiftformat? (macOS only)" && install_hook "SwiftFormat" "$CONFIG_SWIFTFORMAT"
+    confirm_action "Do you want to install prettier?" && install_hook "Prettier" "$CONFIG_PRETTIER"
+    confirm_action "Do you want to install black (Python formatter)?" && install_hook "Black" "$CONFIG_BLACK"
+    confirm_action "Do you want to install swiftlint? (macOS only)" && install_hook "SwiftLint" "$CONFIG_SWIFTLINT"
+    confirm_action "Do you want to install conventional commits?" && install_hook "Conventional Commits" "$CONFIG_CONVENTIONAL_COMMITS"
+}
+
+# Function to check and install pre-commit
+check_pre_commit() {
+    if ! command_exists pre-commit; then
+        echo -e "${YELLOW}pre-commit is not installed${NC}"
+
+        if command_exists brew; then
+            if confirm_action "Would you like to install pre-commit using Homebrew?"; then
+                brew install pre-commit
+            else
+                echo -e "${BLUE}You can install pre-commit using pip:${NC}"
+                echo "pip install pre-commit"
+                exit 1
+            fi
+        else
+            echo -e "${RED}Homebrew not found. Please install Homebrew first:${NC}"
+            echo "https://brew.sh/"
+            echo -e "${BLUE}Then run:${NC} brew install pre-commit"
+            exit 1
+        fi
+    else
+        echo -e "${GREEN}pre-commit is already installed${NC}"
+    fi
+}
+
+# Function to setup branch protection
+setup_branch_protection() {
+    local CONFIG_BRANCH_PROTECTION
+    CONFIG_BRANCH_PROTECTION=$(cat << 'EOL'
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.5.0
+  hooks:
+  - id: no-commit-to-branch
+    name: Block commits to protected branches
+    description: "Prevent commits to protected branches. To ignore rule use git commit --no-verify OR Temporarily disable pre-commit with `SKIP=no-commit-to-branch git commit -m 'FOO'`"
+    args: [
+      '--branch', 'main',
+      '--branch', 'master',
+      '--branch', 'dev',
+      '--branch', 'develop',
+      '--branch', 'release'
+    ]
+EOL
+)
+
+    echo -e "\n${BLUE}Branch Protection Configuration${NC}"
+    echo -e "${YELLOW}This will prevent direct commits to protected branches (main, master, dev, develop, release)${NC}"
+    echo -e "Configuration:"
+    echo "$CONFIG_BRANCH_PROTECTION"
+
+    if confirm_action "Do you want to install branch protection?"; then
+        {
+            echo "$CONFIG_BRANCH_PROTECTION" >> .pre-commit-config.yaml
+            echo -e "${GREEN}Branch protection installed successfully${NC}"
+            return 0
+        } || {
+            echo -e "${RED}Failed to install branch protection${NC}"
+            return 1
+        }
+    else
+        echo -e "${YELLOW}Skipping branch protection${NC}"
+        return 1
+    fi
+}
+
+# Main installation process
+echo -e "${BLUE}Git Hooks Interactive Installer${NC}"
+echo "============================="
+
+# Check for pre-commit installation first
+check_pre_commit
+
+if ! confirm_action "This will guide you through installing git hooks one by one. Do you want to proceed?"; then
+    echo -e "${RED}Installation cancelled${NC}"
+    exit 1
+fi
+
+# Create backup first
+create_backup
+
+# Setup base configuration
+setup_pre_commit_base
+
+# Setup branch protection first
+setup_branch_protection
+
+# Install hooks one by one
+install_all_hooks
+
+# Install pre-commit hooks
+echo -e "${BLUE}Installing pre-commit hooks...${NC}"
+pre-commit clean
+pre-commit uninstall
+pre-commit install --install-hooks
+
+# Install specific hook types
+for hook_type in pre-commit pre-push commit-msg; do
+    if confirm_action "Install $hook_type hook?"; then
+        pre-commit install --hook-type "$hook_type"
+    fi
+done
+
+echo -e "\n${GREEN}✅ Installation complete!${NC}"
+echo -e "Backup location: ${BLUE}$BACKUP_DIR/$TIMESTAMP${NC}"
+echo -e "To restore the backup if needed: ${YELLOW}cd $BACKUP_DIR/$TIMESTAMP && ./restore.sh${NC}"
+echo -e "\nTest your hooks with: ${BLUE}pre-commit run --all-files${NC}"

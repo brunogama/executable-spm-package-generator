@@ -1,0 +1,301 @@
+disabled_rules: # rule identifiers to exclude from running
+  - function_parameter_count
+  - line_length
+  - variable_name
+  - cyclomatic_complexity
+  - nesting
+  - conditional_binding_cascade
+  - large_tuple
+
+opt_in_rules: # some rules are only opt-in
+  - force_unwrapping
+  - force_https
+  - empty_count
+  - conditional_binding_cascade
+
+included:
+  - Sourcery
+  - SourceryRuntime
+  - SourceryTests
+  - Templates/Tests
+
+excluded: # paths to ignore during linting. Takes precedence over `included`.
+  - Carthage
+  - Pods
+  - Packages
+  - SourceryTests/Stub
+  - Templates/Tests/Generated
+  - Templates/Tests/Expected
+
+type_body_length:
+  - 700 #warning
+  - 1000 #error
+
+file_length:
+  - 1000 #warning
+  - 1200 #error
+
+function_body_length:
+  - 125 #warning
+  - 200 #error
+
+type_name:
+  min_length: 3 # only warning
+  max_length: # warning and error
+    warning: 50
+    error: 50
+
+custom_rules:
+  force_https:
+    name: "Force HTTPS over HTTP"
+    regex: "((?i)http(?!s))"
+    match_kinds: string
+    message: "HTTPS should be favored over HTTP"
+    severity: warning
+
+  explicit_failure_calls:
+    name: "Avoid asserting 'false'"
+    regex: '((assert|precondition)\(false)'
+    message: "Use assertionFailure() or preconditionFailure() instead."
+    severity: warning
+
+  fatal_error:
+    name: Fatal Error
+    excluded: "Tests/*"
+    message: Prefer using `queuedFatalError` over `fatalError` to avoid leaking compiler host machine paths.
+    regex: \bfatalError\b
+    match_kinds:
+      - identifier
+    severity: error
+
+  mvvm_binding_pattern:
+    name: "MVVM Binding Pattern"
+    regex: '(?:class|struct)\s+\w+ViewModel\s*{[^}]*(?<!\$)\w+\s*:\s*Observable<[^>]+>[^}]*}'
+    message: "ViewModel properties that represent UI state should use Observable wrapper"
+    severity: error
+
+  dependency_injection_constructor:
+    name: "Dependency Injection Constructor"
+    regex: '(?:class|struct)\s+(\w+)(?:(?!init).)*\binit\s*\([^)]*\)\s*\{(?![^}]*\b\1Dependencies\b)'
+    message: "Types should inject dependencies through a dedicated Dependencies type"
+    severity: warning
+
+  command_pattern_validation:
+    name: "Command Pattern Validation"
+    regex: 'class\s+\w+Command\s*:.*?{(?![^}]*(?:execute|perform|run)\s*\([^)]*\))'
+    message: "Command objects must implement execute(), perform() or run() method"
+    severity: error
+
+#   coordinator_flow_handling:
+#     name: "Coordinator Flow Handling"
+#     regex: 'class\s+\w+Coordinator\s*:.*?{(?![^}]*(?:start|handle|coordinate)\s*\([^)]*\))'
+#     message: "Coordinator classes must implement start(), handle() or coordinate() method"
+#     severity: error
+
+  use_case_implementation:
+    name: "Use Case Implementation"
+    regex: 'protocol\s+\w+UseCase\s*{(?![^}]*(?:execute|perform)\s*\([^)]*\)\s*(?:throws\s+)?async)'
+    message: "Use cases should have an async execute() or perform() method"
+    severity: error
+
+  repository_async_pattern:
+    name: "Repository Async Pattern"
+    regex: 'protocol\s+\w+Repository\s*{[^}]*func\s+\w+\s*\([^)]*\)\s*(?!async)(?!throws)[^}]*}'
+    message: "Repository methods should be async and/or throwing"
+    severity: warning
+
+#   state_machine_validation:
+#     name: "State Machine Validation"
+#     regex: 'enum\s+\w+State\s*{[^}]*(?<!\bcase\s+[^:]+:\s*(?:Equatable|Hashable|CaseIterable))[^}]*}'
+#     message: "State enums should conform to Equatable, Hashable, or CaseIterable"
+#     severity: warning
+
+  service_layer_isolation:
+    name: "Service Layer Isolation"
+    regex: 'class\s+\w+Service\s*{[^}]*(?:\bUIKit\b|\bSwiftUI\b)[^}]*}'
+    message: "Service layer should not import UI frameworks"
+    severity: error
+
+  mapper_bidirectional_check:
+    name: "Mapper Bidirectional Check"
+    regex: 'struct\s+\w+Mapper\s*{(?![^}]*toDomain[^}]*toDTO)'
+    message: "Mappers should implement both toDomain and toDTO methods"
+    severity: warning
+
+  result_builder_pattern:
+    name: "Result Builder Pattern"
+    regex: '@resultBuilder\s+struct\s+\w+Builder\s*{(?![^}]*buildBlock[^}]*buildEither)'
+    message: "Result builders should implement both buildBlock and buildEither methods"
+    severity: error
+
+  event_handler_type_safety:
+    name: "Event Handler Type Safety"
+    regex: 'typealias\s+\w+Handler\s*=\s*(?!.*->.*Result<.*,.*Error.*>)'
+    message: "Event handlers should return Result type for proper error handling"
+    severity: warning
+
+  actor_isolation_check:
+    name: "Actor Isolation Check"
+    regex: 'actor\s+\w+\s*{[^}]*(?<!\bnonisolated\b)\s*func\s+\w+\s*\([^)]*\)\s*->\s*[^{]*\{'
+    message: "Consider marking appropriate actor methods as nonisolated"
+    severity: warning
+
+  protocol_composition_check:
+    name: "Protocol Composition Check"
+    regex: 'protocol\s+\w+\s*:\s*(?![^{]*&)'
+    message: "Consider using protocol composition for better interface segregation"
+    severity: warning
+
+  custom_operator_documentation:
+    name: "Custom Operator Documentation"
+    regex: '(?<!\/\/\/[^\n]*\n\s*)(?<!\/\*(?:[^*]|\*(?!\/))*\*\/\s*)operator\s+[^a-zA-Z0-9\s]+'
+    message: "Custom operators must be documented"
+    severity: error
+
+  generic_constraint_naming:
+    name: "Generic Constraint Naming"
+    regex: 'func\s+\w+<(?!T\s*:)[A-Z]\w*\s*:'
+    message: "Use T as the primary generic parameter name"
+    severity: warning
+
+  property_wrapper_validation:
+    name: "Property Wrapper Validation"
+    regex: '@propertyWrapper\s+struct\s+\w+\s*{(?![^}]*wrappedValue[^}]*projectedValue)'
+    message: "Property wrappers should implement both wrappedValue and projectedValue"
+    severity: error
+
+  access_control_hierarchy:
+    name: "Access Control Hierarchy"
+    regex: '(?:internal|fileprivate|private)\s+protocol\s+\w+\s*{[^}]*public\s+'
+    message: "Protocol members cannot be more accessible than the protocol itself"
+    severity: error
+
+  object_calisthenics:
+    name: "Object Calisthenics Rules"
+    included: ".*\\.swift"
+    excluded: ".*Test\\.swift"
+    rules:
+      # Rule 1: Only One Level of Indentation per Method
+      excessive_indentation:
+        regex: '(?x)
+          (?:func\s+\w+\s*\([^)]*\)\s*(?:throws\s+)?(?:async\s+)?(?:->)?[^{]*\{
+            (?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*
+            \s{8,}[^\s]
+          )'
+        message: "Methods should have only one level of indentation"
+        severity: error
+
+      # Rule 2: Don't Use the ELSE Keyword
+      else_keyword:
+        regex: '\belse\b'
+        message: "Avoid using else keyword, use early returns instead"
+        severity: warning
+
+      # Rule 3: Wrap All Primitives, Strings, and Collections
+      unwrapped_primitive:
+        regex: '(?x)
+          (?:let|var)\s+\w+\s*:\s*
+          (?:
+            (?:Int|Double|Float|Bool|String|Character) |           # Basic types
+            (?:\[[^\]]*\]) |                                      # Any array type
+            (?:Set<[^>]*>) |                                      # Any set type
+            (?:Dictionary<[^>]*,[^>]*>) |                         # Any dictionary type
+            (?:\[.+:.+\])                                         # Alternative dictionary syntax
+          )
+          (?!\s*\{)
+          (?!\s*=\s*\{)'
+        message: "Wrap primitive types in value objects"
+        severity: warning
+
+      # Rule 4: First Class Collections
+      collection_property:
+        regex: '(?x)
+          class\s+\w+\s*\{
+            (?:[^{}]|\{[^{}]*\})*
+            (?:let|var)\s+\w+\s*:\s*\[.*\]
+            (?:[^{}]|\{[^{}]*\})*
+            (?:let|var)\s+\w+\s*:(?!\s*\[)
+          \}'
+        message: "Classes that contain collections should not contain other instance variables"
+        severity: warning
+
+      # Rule 5: One Dot per Line
+      method_chaining:
+        regex: '\.\w+\s*\.\w+'
+        message: "Use only one dot per line (avoid method chaining)"
+        severity: warning
+
+      # Rule 6: Don't Abbreviate Names
+      abbreviated_name:
+        regex: '(?x)
+          (?:class|struct|enum|protocol|func|let|var)\s+
+          (?:[a-z]{1,2}|[A-Z]{1,2})\w*
+          (?:\s*[:{]|\s*=)'
+        message: "Don't use abbreviations in names"
+        severity: warning
+
+      # Rule 7: Keep All Entities Small
+      large_class:
+        regex: '(?x)
+          (?:class|struct|enum|protocol)\s+\w+[^{]*\{
+            (?:[^{}]|\{[^{}]*\}){500,}
+          \}'
+        message: "Keep classes under 50 lines"
+        severity: warning
+
+      large_method:
+        regex: '(?x)
+          func\s+\w+\s*\([^)]*\)\s*(?:throws\s+)?(?:async\s+)?(?:->)?[^{]*\{
+            (?:[^{}]|\{[^{}]*\}){200,}
+          \}'
+        message: "Keep methods under 10 lines"
+        severity: warning
+
+      # Rule 8: No Classes With More Than Two Instance Variables
+      too_many_properties:
+        regex: '(?x)
+          class\s+\w+[^{]*\{
+            (?:[^{}]|\{[^{}]*\})*
+            (?:(?:let|var)\s+\w+\s*:(?!\s*\{)[^;]*;?\s*){3,}
+          \}'
+        message: "Classes should have no more than two instance variables"
+        severity: warning
+
+      # Rule 9: No Getters/Setters/Properties
+      getter_setter:
+        regex: '(?x)
+          (?:var\s+\w+\s*:\s*[^{]+\{
+            \s*get\s*\{[^}]*\}\s*
+            \s*set\s*\{[^}]*\}\s*
+          \})'
+        message: "Don't use getters and setters - tell, don't ask"
+        severity: warning
+
+      # Additional Support Rules
+      guard_else_usage:
+        regex: 'guard\s+[^{]+\{[^}]*\}\s*else\s*\{[^}]*return[^}]*\}'
+        message: "Use guard for early returns and preconditions"
+        severity: info
+
+      tiny_class_enforcement:
+        regex: '(?x)
+          class\s+\w+[^{]*\{
+            (?:[^{}]|\{[^{}]*\}){1,50}
+          \}'
+        message: "Classes should be focused and small (preferably under 50 lines)"
+        severity: info
+
+      tell_dont_ask_violation:
+        regex: '(?x)
+          if\s+\w+\.(?:is|get|has)\w+\s*(?:\((?:[^()]|\([^()]*\))*\))?\s*\{'
+        message: "Tell, don't ask - avoid querying object state"
+        severity: warning
+
+      command_query_separation:
+        regex: '(?x)
+          func\s+\w+\s*\([^)]*\)\s*->\s*\w+\s*\{
+            (?:[^{}]|\{[^{}]*\})*
+            \bself\.\w+\s*=
+          \}'
+        message: "Command-Query Separation: Methods should either change state or return value, not both"
+        severity: warning

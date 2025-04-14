@@ -1,0 +1,29 @@
+---
+convention:
+  commitTypes:
+  - feat
+  - fix
+  - perf
+  - refactor
+  - style
+  - test
+  - build
+  - ops
+  - docs
+  - merge
+  - chore
+changelog:
+  commitTypes:
+  - feat
+  - fix
+  - perf
+  - merge
+  includeInvalidCommits: true
+  commitScopes: []
+  commitIgnoreRegexPattern: "^WIP "
+  headlines:
+    feat: Features
+    fix: Bug Fixes
+    perf: Performance Improvements
+    merge: Merges
+    breakingChange: BREAKING CHANGES
