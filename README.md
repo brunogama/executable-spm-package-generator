@@ -21,6 +21,7 @@ This script streamlines the process of creating a new Swift executable project b
 ## Features
 
 - Creates a Swift executable project with a single command
+- You can add any depebdebcies to your executable so you can test-it like it should.
 - Configures the project with support for the latest Apple platforms:
   - macOS 14.0
   - iOS 17.0
